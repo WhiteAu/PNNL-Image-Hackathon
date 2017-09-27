@@ -15,37 +15,33 @@ from utilities.data_type_functions import convert_to_categorical, combine_catego
 '''
 A quick script to combine ptid to breast cancer outcome
 '''
+import dataframe_construction
 
-config = configparser.ConfigParser()
-configFilePath = 'config'
-config.read(configFilePath)
+lidc_data = dataframe_construction.main()
 
-usr_config = configparser.ConfigParser()
-usrConfigFilePath = 'user_config'
-usr_config.read(usrConfigFilePath)
+target = np.array(lidc_data['malignancy'])
+observations = lidc_data.drop(['malignancy'], axis=1)
 
-baseline_key = pd.read_csv(os.path.join(usr_config['OUTPUT']['path'], config['KEY DATA']['baseline_key']), sep='\t')
-baseline_key = drop_pct_missing(baseline_key, .3, key_col='ID')
-print(baseline_key.columns)
-breast_cancer_key = pd.read_csv(os.path.join(usr_config['OUTPUT']['path'],
-                                             config['KEY DATA']['breast_cancer_key']),
-                                sep='\t')
-target = np.array(breast_cancer_key['BREAST_CANCER'])
-observations = baseline_key.drop(['ID'], axis=1)
-
-observations, target, _, _, = create_holdout_set(observations, target, .75, seed=config.getint('TRAINING VALUES', 'seed'))
+observations, target, _, _, = create_holdout_set(observations, target, .75, seed=42)
 
 '''
 Categorical keys are previously called out
 Continuous keys are the inversion of that.
 '''
-cat_keys = combine_categorical_keys_and_output_list(os.path.join(usr_config['OUTPUT']['path'],
-                                                                 config['METADATA']['categorical_manifest']))
 
-cont_keys = combine_continuous_keys_and_output_list(os.path.join(usr_config['OUTPUT']['path'],
-                                                                 config['METADATA']['continuous_manifest']))
+CATEGORICAL_KEYS = ['calcification',
+                    'internalStructure',
+                    ]
+CONTINUOUS_KEYS = ['subtlety',
+                   'lobulation',
+                   'margin',
+                   'sphericity',
+                   'spiculation',
+                   'texture'
+                   ]
 
-continuous_vars = observations.loc[:, observations.columns.isin(list(cont_keys))]
+continuous_vars = observations.loc[:, observations.columns.isin(list(CONTINUOUS_KEYS))]
+categorical_vars = observations.loc[:, observations.columns.isin(list(CATEGORICAL_KEYS))]
 
 #Fit a gaussian NB on continuous vars
 cont_imputer = Imputer(strategy='mean', axis=1, copy=False)
@@ -55,7 +51,7 @@ continuous_predictions = cross_val_predict(gauss_nb, imputed_continuous_vars, ta
 output_metrics("Continuous NB", target, continuous_predictions)
 
 #Fit multinomial NB on categorical vars
-categorical_vars = convert_to_categorical(observations, cat_keys, cat_only=True, key_var='ID')
+categorical_vars = convert_to_categorical(observations, CATEGORICAL_KEYS, cat_only=True, key_var='ID')
 mult_nb = MultinomialNB()
 categorical_predictions = cross_val_predict(mult_nb, categorical_vars, target, cv=10)
 output_metrics("Categorical NB", target, categorical_predictions)
