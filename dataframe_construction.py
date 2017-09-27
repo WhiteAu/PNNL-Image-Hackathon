@@ -27,7 +27,7 @@ def main():
             i += 1
             data.loc[i, ['scan_id']] = annotation.scan_id
             data.loc[i, ['patient']] = scan.patient_id
-            data.loc[i, ['nodule_id']]
+            data.loc[i, ['nodule_id']] = annotation._nodule_id
             data.loc[i, ['annotation']] = j
             data.loc[i, ['calcification']] = annotation.calcification
             data.loc[i, ['internalStructure']] = annotation.internalStructure
